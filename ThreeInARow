@@ -1,0 +1,47 @@
+#Michael Higley mwh180000
+#Dylan 
+#Three in a row game project made for CS 2340 with Nhut Nguyen
+
+
+.data
+	userWin .asciiz "Congratulations, you won the game!"
+	computerWin .asciiz "You lost to the computer!"
+	gameTie .asciiz "The game has tied."
+	movePrompt .asciiz "It is your turn"
+	computerTurn .asciiz "The CPU has moved"
+	inputPosition .asciiz "Enter a number 1-3 for your move"
+	invalidMove .asciiz "That is not a valid column."
+	columnFull .asciiz "That column is full now"
+	gameExplain .asciiz "This game is called Three in a row. The goal is to get three of your pieces to line up vertically, horizontally, or diagonally. The board is 3x6 and you are up against a CPU. Have fun!."
+	
+
+.text
+main:
+	li $v0, 4 #Loading 4 for output
+	la $a0, gameExplain #Print the explanation
+	syscall
+loop: #Start of the input loop
+	la $a0, inputPosition
+	syscall 
+
+	li $v0, 5 #Getting ready for user input
+	syscall
+	
+	move $t0, $v0 #Moves input to the temp register 0 
+	jal isValid #Testing if the move is valid
+	
+	
+	
+	
+isValid: #Tests if the move is valid
+	ble $t0, 1, valid
+	bge $t0, 3, valid
+	j invalid
+valid: #If the move is valid
+	j $ra
+
+invalid: #If the move is invalid
+	lie $v0, 4
+	la $a0, invalidMove
+	syscall
+	j loop
