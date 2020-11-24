@@ -1,24 +1,25 @@
 #Michael Higley mwh180000
 #Dillon Carter	dwc180002
 #Three in a row game project made for CS 2340 with Nhut Nguyen
-
-
+#Registers Used:
+#S Registers: s0: Stores 2d Array of board, s1: Stores size of row, s2: Stores size of column
+#T Registers: t0: Stores inputted column
+#
 .data
 	#All ASCIIZ values
-	horizontalLine .asciiz "----------" #10 wide, change later to get correct formating, seperate rows
-	verticalLine	.asciiz "|" #Vertical line to seperate columns
-	userWin .asciiz "Congratulations, you won the game!"
-	computerWin .asciiz "You lost to the computer!"
-	gameTie .asciiz "The game has tied."
-	movePrompt .asciiz "It is your turn"
-	computerTurn .asciiz "The CPU has moved"
-	inputPosition .asciiz "Enter a number 1-3 for your move"
-	invalidMove .asciiz "That is not a valid column."
-	columnFull .asciiz "That column is full now"
-	gameExplain .asciiz "This game is called Three in a row. The goal is to get three of your pieces to line up vertically, horizontally, or diagonally. The board is 3x6 and you are up against a CPU. Have fun!."
-	stateEmpty	.asciiz "E"
-	stateRed	.asciiz "R"
-	stateBlack	.asciiz "B"
+	newLine:	.asciiz "\n"
+	userWin: 	.asciiz "Congratulations, you won the game!"
+	computerWin: 	.asciiz "You lost to the computer!"
+	gameTie: 	.asciiz "The game has tied."
+	movePrompt: 	.asciiz "It is your turn"
+	computerTurn: 	.asciiz "The CPU has moved"
+	inputPosition: 	.asciiz "Enter a number 1-3 for your move"
+	invalidMove: 	.asciiz "That is not a valid column."
+	columnFull: 	.asciiz "That column is full now"
+	gameExplain: 	.asciiz "This game is called Three in a row. The goal is to get three of your pieces to line up vertically, horizontally, or diagonally. The board is 3x6 and you are up against a CPU. Have fun!."
+	stateEmpty:	.asciiz "E"
+	stateRed:	.asciiz "R"
+	stateBlack:	.asciiz "B"
 	
 	#Word values
 	boardState .word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
@@ -27,11 +28,19 @@
 		   .word 0,0,0
 		   .word 0,0,0
 		   .word 0,0,0
+		   
+	rowSize:   .word 3
+	columnSize:.word 6
 .text
 main:
 	li $v0, 4 #Loading 4 for output
 	la $a0, gameExplain #Print the explanation
 	syscall
+	#Initialize the board
+	la $s0, ui2DArray   #load base address of 2D array into register
+    	lw $s1, rowSize
+    	lw $s2, columnSize
+    	
 loop: #Start of the input loop
 	
 	jal displayBoard #Display the current board
@@ -52,7 +61,7 @@ isValid: #Tests if the move is invalid
 	bgt  $t0, 3, invalid
 
 valid: #If the move is valid
-	j $ra
+	jr $ra
 
 invalid: #If the move is invalid
 	lie $v0, 4
