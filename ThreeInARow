@@ -1,27 +1,37 @@
 #Michael Higley mwh180000
-#Dylan 
+#Dillon Carter	dwc180002
 #Three in a row game project made for CS 2340 with Nhut Nguyen
 
 
 .data
-	userWin: .asciiz "Congratulations, you won the game!"
-	computerWin: .asciiz "You lost to the computer!"
-	gameTie: .asciiz "The game has tied.\n"
-	movePrompt: .asciiz "It is your turn\n"
-	computerTurn: .asciiz "The CPU has moved\n"
-	inputPosition: .asciiz "Enter a number 1-3 for your move\n"
-	invalidMove: .asciiz "That is not a valid column.\n"
-	columnFull: .asciiz "That column is full now\n"
-	gameExplain: .asciiz "This game is called Three in a row. The goal is to get three of your pieces to line up vertically, horizontally, or diagonally.\nThe board is 3x6 and you are up against a CPU. Have fun!\n"
-	boardExplain: .asciiz "The board has three states: 0 for empty, 1 for your pieces, and 2 for computer pieces.\n"
-	list: .word 0:18 #18 integers for a 3x6 board
+	#All ASCIIZ values
+	horizontalLine .asciiz "----------" #10 wide, change later to get correct formating, seperate rows
+	verticalLine	.asciiz "|" #Vertical line to seperate columns
+	userWin .asciiz "Congratulations, you won the game!"
+	computerWin .asciiz "You lost to the computer!"
+	gameTie .asciiz "The game has tied."
+	movePrompt .asciiz "It is your turn"
+	computerTurn .asciiz "The CPU has moved"
+	inputPosition .asciiz "Enter a number 1-3 for your move"
+	invalidMove .asciiz "That is not a valid column."
+	columnFull .asciiz "That column is full now"
+	gameExplain .asciiz "This game is called Three in a row. The goal is to get three of your pieces to line up vertically, horizontally, or diagonally. The board is 3x6 and you are up against a CPU. Have fun!."
+	stateEmpty	.asciiz "E"
+	stateRed	.asciiz "R"
+	stateBlack	.asciiz "B"
+	
+	#Word values
+	boardState .word 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
 
 .text
 main:
 	li $v0, 4 #Loading 4 for output
 	la $a0, gameExplain #Print the explanation
 	syscall
-inputloop: #Start of the input loop
+loop: #Start of the input loop
+	
+	jal displayBoard #Display the current board
+	
 	la $a0, inputPosition
 	syscall 
 
@@ -33,16 +43,43 @@ inputloop: #Start of the input loop
 	
 	
 	
-	
 isValid: #Tests if the move is invalid
 	blt $t0, 1, invalid
 	bgt  $t0, 3, invalid
 
 valid: #If the move is valid
-	jr $ra 
+	j $ra
 
 invalid: #If the move is invalid
-	li $v0, 4
+	lie $v0, 4
 	la $a0, invalidMove
 	syscall
-	j inputloop
+	j loop
+
+displayBoard: #Takes the content of each position and displays the content whether it is red, black, or empty as R, B, or E
+	la $t0, boardstate
+	
+	
+	
+	j $ra
+	
+boardLoop:    #Loops through a set amount of displays for each line of the 
+	beq 
+	
+displayEmpty: #Displays empty board state
+	li $v0, 4
+	la $a0, stateEmpty
+	syscall
+	j $ra
+
+displayRed: #Displays Red player board state
+	li $v0, 4
+	la $a0, stateRed
+	syscall
+	j $ra
+	
+displayBlack: #Displays Black player board state
+	li $v0, 4
+	la $a0, stateBlack
+	syscall
+	j $ra
