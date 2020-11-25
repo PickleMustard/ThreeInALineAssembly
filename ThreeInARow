@@ -25,16 +25,17 @@
 	
 	#Word values
 	boardState: 	.word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
-		    	.word 2,1,1
-		    	.word 1,1,2
-		    	.word 2,2,1
-		    	.word 1,1,2
-		    	.word 2,1,2
+		    	.word 0,0,0
+		    	.word 0,0,0
+		    	.word 0,0,0
+		    	.word 0,0,0
+		    	.word 0,0,0
 		   
 	rowSize:   	.word 3
 	columnSize:	.word 6
 	dataSize:	.word 4	
-	userInput:	.word 0	
+	userInput:	.word 0
+	rowIndex:	.word 0	
 .text
 main:
 	li $v0, 4
@@ -234,11 +235,13 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 	enterAI:
 		li $t1, 2
 		sw $t1, 0($t9)
+		sw $t5, rowIndex
 		jr $ra
 	
 	enterPlayer:
 		li $t1, 1
 		sw $t1, 0($t9)
+		sw $t5, rowIndex
 		jr $ra
 		
 #--------------------------------------------------------------------------------------------------------------------------------------
@@ -246,8 +249,10 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 #--------------------------------------------------------------------------------------------------------------------------------------
 checkWinState:
     checkWin:
+    	sw $ra, 0($sp)
     	la $s0, boardState
     	li $t1, 0	#Row Index
+    	move $t8, $s2
     	checkHorizontalSetup: #Sets the col index to 0 and row index to 0
     		li $t0, 0	#Column Index
     		li $t3, 0	#Number of same in checking
@@ -297,14 +302,16 @@ checkWinState:
     		j checkVerticalLoop
     	
     	checkDiagonal:
-    		li $t3, 0
-    		li $t0, 0
-    		li $t1, 0
+    		lw $a0, rowIndex
+    		lw $a1, userInput
+    		move $t0, $a0
+    		move $t1, $a1
+    		li $t3, 1
     		topLeftCheck:
         		addi $t0, $t0, 1
         		subi $t1, $t1, 1
-        		bge	$t0, $s1, topLeftCheckEnd	# if $t0 >= $t1 then target
-        		blt $t1, $zero, topLeftCheckEnd
+        		bge $t0, $s1, topLeftCheckEnd	# If outside range of board
+        		blt $t1, $zero, topLeftCheckEnd	# IF outside range of board
 
         		# address of element == base address (label) + (rowIndex * colSize + colIndex) * dataSize
        			mul $t5, $t0, $s2   #   $a0 = rowIndex * columnSize
@@ -313,10 +320,10 @@ checkWinState:
 			add $t5, $t5, $s0   #   $a0 += base address
         		# $t5 now has address of the element at rowIndex $t0 and columnIndex $t1
 
-        	lw $t5, ($t5)
-        	bne $t5, $a2, topLeftCheckEnd # if player at address != given player, then exit loop
-		addi $t3, $t3, 1 # increment same in a row count
-		beq $t3, $t4, winner	# if same in a row count == win amount, then win
+        		lw $t5, ($t5)
+        		bne $t5, $s4, topLeftCheckEnd # if player at address != given player, then exit loop
+			addi $t3, $t3, 1 # increment same in a row count
+			beq $t3, $t4, winner	# if same in a row count == win amount, then win
 
 		j topLeftCheck
 
@@ -324,7 +331,6 @@ checkWinState:
 		li $t0, 0 # $a0 == $t0 == rowIndex
     		li $t1, 0 # $a1 == $t1 == columnIndex 
     		# $a2 == which player to check win for, 1 == playerOne, 2 == playerTwo
-		li $t3, 0
 		
     		bottomRightCheck:
         	subi $t0, $t0, 1
@@ -340,9 +346,9 @@ checkWinState:
         	# $t5 now has address of the element at rowIndex $t0 and columnIndex $t1
 
         	lw $t5, ($t5)
-        	bne $t5, $a2, bottomRightCheckEnd # if player at address != given player, then exit loop
+        	bne $t5, $s4, bottomRightCheckEnd # if player at address != given player, then exit loop
         	addi $t3, $t3, 1 # increment same in a row count
-        	beq	$t3, $t4, winner	# if same in a row count == win amount, then win
+        	beq $t3, $t4, winner	# if same in a row count == win amount, then win
 
         	j bottomRightCheck
 
@@ -357,7 +363,7 @@ checkWinState:
     		topRightCheck:
         		addi $t0, $t0, 1
        			addi $t1, $t1, 1
-			bge	$t0, $s1, topRightCheckEnd	# if $t0 >= $t1 then target
+			bge $t0, $s1, topRightCheckEnd	# if $t0 >= $t1 then target
         		bge $t1, $s2, topRightCheckEnd
 
         		# address of element == base address (label) + (rowIndex * colSize + colIndex) * dataSize
@@ -368,7 +374,7 @@ checkWinState:
         		# $t5 now has address of the element at rowIndex $t0 and columnIndex $t1
 
         		lw $t5, ($t5)
-        		bne $t5, $a2, topRightCheckEnd # if player at address != given player, then exit loop
+        		bne $t5, $s4, topRightCheckEnd # if player at address != given player, then exit loop
         		addi $t3, $t3, 1 # increment same in a row count
         		beq $t3, $t4, winner	# if same in a row count == win amount, then win
 
@@ -393,7 +399,7 @@ checkWinState:
         		# $t5 now has address of the element at rowIndex $t0 and columnIndex $t1
 
         		lw $t5, ($t5)
-        		bne $t5, $a2, bottomLeftCheckEnd # if player at address != given player, then exit loop
+        		bne $t5, $s4, bottomLeftCheckEnd # if player at address != given player, then exit loop
         		addi $t3, $t3, 1 # increment same in a row count
         		beq $t3, $t4, winner	# if same in a row count == win amount, then win
 
@@ -405,30 +411,35 @@ checkWinState:
     	#set indexes
     	li $t0, 0 # $t0 == rowIndex
     	li $t1, 0 # $t1 == columnIndex
+    	li $a0, 0
+    	la $s0, boardState
 
    	 checkTieLoop:
-        #   address of element == base address (label) + (rowIndex * colSize + colIndex) * dataSize
-        mul $a0, $t0, $s2   #   $a0 = rowIndex * columnSize
-        add $a0, $a0, $t1   #   $a0 += columnIndex
-        mul $a0, $a0, $s3   #   $a0 *= DATA_SIZE
-        add $a0, $a0, $s0   #   $a0 += base address
-        #   a0 now has address of the element at rowIndex $t0 and columnIndex $t1
+        	#   address of element == base address (label) + (rowIndex * colSize + colIndex) * dataSize
+        	mul $a0, $t0, $s2   #   $a0 = rowIndex * columnSize
+        	add $a0, $a0, $t1   #   $a0 += columnIndex
+        	mul $a0, $a0, $s3   #   $a0 *= DATA_SIZE
+        	add $a0, $a0, $s0   #   $a0 += base address
+        	#   a0 now has address of the element at rowIndex $t0 and columnIndex $t1
 
-        #If t2 is equal to zero, after all the possible pieces have been examined, then there is no tie
-        lw $t2, ($a0)
-        beq $t2, $zero, noTie	# if value at address == 0, it is a valid move and we can exit the loop
+        	#If t2 is equal to zero, after all the possible pieces have been examined, then there is no tie
+        	lw $t2, ($a0)
+        	beq $t2, $zero, noTie	# if value at address == 0, it is a valid move and we can exit the loop
         
-        addi $t1, $t1, 1 # Add one to the column Index
-        blt $t1, $s2, checkTieLoop # if column index < 3, repeat loop
+        	addi $t1, $t1, 1 # Add one to the column Index
+        	blt $t1, $s2, checkTieLoop # if column index < 3, repeat loop
 
-        addi $t0, $t0, 1 # Add one to the row Index
-        li $t1, 0
-        blt  $t0, $s1, checkTieLoop # if rowIndex < 6
+        	addi $t0, $t0, 1 # Add one to the row Index
+        	li $t1, 0
+        	blt  $t0, $s1, checkTieLoop # if rowIndex < 6
     
     	isTie: #Jumps here if no possible moves detected
-    	j tie
+    		j tie
     
     	noTie:
+    		lw $ra, 0($sp)
+    		jr $ra
+
     		
 
 tie: #Displays tie
