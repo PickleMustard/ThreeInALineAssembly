@@ -24,12 +24,12 @@
 	stateBlack:	.asciiz "B"
 	
 	#Word values
-	boardState: 	.word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
-		    	.word 0,0,0
-		    	.word 0,0,0
-		    	.word 0,0,0
-		    	.word 0,0,0
-		    	.word 0,0,0
+	boardState: 	.word 0,1,1 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
+		    	.word 1,2,1
+		    	.word 2,1,2
+		    	.word 1,2,1
+		    	.word 2,1,2
+		    	.word 1,2,1
 		   
 	rowSize:   	.word 3
 	columnSize:	.word 6
@@ -75,6 +75,10 @@ loop: #Start of the input loop
 	
 	li $s4, 1
 	jal gravityCheck
+	
+	jal displayBoard #Display the current board
+	
+	jal checkWinState
 	
 	j loop
 	
@@ -239,3 +243,106 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 #--------------------------------------------------------------------------------------------------------------------------------------
 #CHECK WIN STATE
 #--------------------------------------------------------------------------------------------------------------------------------------
+checkWinState:
+    checkWin:
+    	la $s0, boardState
+    	checkHorizontalSetup: #Sets the col index to 0 and row index to 0
+    		li $t0, 0	#Column Index
+    		li $t1, 0	#Row Index
+    		li $t3, 0	#Number of same in checking
+    		li $t4, 3	#Number of values to win
+    		
+    	checkHorizontalLoop: #Goes through each row, if all three are the same as the current player, then current move won
+    		lw $t2, ($s0)	#Get the value at the index
+    		bne $t2, $s4, checkHorizontalIncrement
+    		addi $t3, $t3, 1
+    		beq $t4, $t3, winner
+    		addi $s0, $s0, 4
+    		j checkHorizontalLoop
+    		
+    	checkHorizontalIncrement: #Increments the row to check
+    		beq $t1, $s2, checkVerticalSetup
+    		addi $t1, $t1, 1
+    		la $s0, boardState
+    		mult $t1, $s2
+    		mflo $t5
+    		add $t5, $t5, $t0
+    		mult $t5, $s3
+    		mflo $t5
+    		add $s0, $t5, $s0
+    		j checkHorizontalSetup
+    		
+    	checkVerticalSetup:
+    	
+    	CheckTie:
+    	#set indexes
+    	li $t0, 0 # $t0 == rowIndex
+    	li $t1, 0 # $t1 == columnIndex
+
+   	 checkTieLoop:
+        #   address of element == base address (label) + (rowIndex * colSize + colIndex) * dataSize
+        mul $a0, $t0, $s2   #   $a0 = rowIndex * columnSize
+        add $a0, $a0, $t1   #   $a0 += columnIndex
+        mul $a0, $a0, $s3   #   $a0 *= DATA_SIZE
+        add $a0, $a0, $s0   #   $a0 += base address
+        #   a0 now has address of the element at rowIndex $t0 and columnIndex $t1
+
+        #If t2 is equal to zero, after all the possible pieces have been examined, then there is no tie
+        lw $t2, ($a0)
+        beq $t2, $zero, noTie	# if value at address == 0, it is a valid move and we can exit the loop
+        
+        addi $t1, $t1, 1 # Add one to the column Index
+        blt $t1, $s2, checkTieLoop # if column index < 3, repeat loop
+
+        addi $t0, $t0, 1 # Add one to the row Index
+        li $t1, 0
+        blt  $t0, $s1, checkTieLoop # if rowIndex < 6
+    
+    	isTie: #Jumps here if no possible moves detected
+    	j tie
+    
+    	noTie:
+    		
+
+tie: #Displays tie
+	li $v0, 4
+	la $a0, newLine
+	syscall
+
+	li $v0, 4
+	la $a0, gameTie
+	syscall
+	
+	li $v0, 10
+	syscall
+	
+winner: #Displays the winner
+	li $t1, 0
+	beq $s4, $t1, playerWin
+	j AIWin
+	
+	playerWin:
+		li $v0, 4
+		la $a0, newLine
+		syscall
+	
+		li $v0, 4
+		la $a0, userWin
+		syscall
+		
+		li $v0, 10
+		syscall
+		
+	AIWin:
+		li $v0, 4
+		la $a0, newLine
+		syscall
+		
+		li $v0, 4
+		la $a0, computerWin
+		syscall
+		
+		li $v0, 10
+		syscall
+	
+	
