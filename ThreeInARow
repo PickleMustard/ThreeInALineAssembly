@@ -8,6 +8,8 @@
 .data
 	#All ASCIIZ values
 	newLine:	.asciiz "\n"
+	horizontalLine: .asciiz "______"
+	verticalLine:	.asciiz "|"
 	userWin: 	.asciiz "Congratulations, you won the game!"
 	computerWin: 	.asciiz "You lost to the computer!"
 	gameTie: 	.asciiz "The game has tied."
@@ -22,28 +24,36 @@
 	stateBlack:	.asciiz "B"
 	
 	#Word values
-	boardState .word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
-		   .word 0,0,0
-		   .word 0,0,0
-		   .word 0,0,0
-		   .word 0,0,0
-		   .word 0,0,0
+	boardState: .word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
+		    .word 0,0,0
+		    .word 0,0,0
+		    .word 0,0,0
+		    .word 0,0,0
+		    .word 0,0,0
 		   
 	rowSize:   .word 3
 	columnSize:.word 6
 .text
 main:
+	li $v0, 4
+	la $a0, newLine
+	syscall
+	
 	li $v0, 4 #Loading 4 for output
 	la $a0, gameExplain #Print the explanation
 	syscall
 	#Initialize the board
-	la $s0, ui2DArray   #load base address of 2D array into register
+	la $s0, boardState   #load base address of 2D array into register
     	lw $s1, rowSize
     	lw $s2, columnSize
     	
 loop: #Start of the input loop
 	
 	jal displayBoard #Display the current board
+	
+	li $v0, 4
+	la $a0, newLine
+	syscall
 	
 	la $a0, inputPosition
 	syscall 
@@ -64,42 +74,83 @@ valid: #If the move is valid
 	jr $ra
 
 invalid: #If the move is invalid
-	lie $v0, 4
+	li $v0, 4
 	la $a0, invalidMove
 	syscall
 	j loop
 
 displayBoard: #Takes the content of each position and displays the content whether it is red, black, or empty as R, B, or E
-    li	$v0, 1	
-    move $a0, $s0 
-    syscall
+	la $s0, boardState
+	move $zero, $t6
+	move $zero, $t7
+	sw $ra, 0($sp)
+	jal boardLoop
+	lw $ra, 0($sp)
+	jr $ra
+	
+boardLoop:    #Loops through a set amount of displays for each line of the 
+	li $v0, 4	#Immediatly creates a new line
+	la $a0, newLine
+	syscall
+	move $t7, $zero
+	
+	#Check current position in the board
+	div $t1, $t6, 2
+	mfhi $t1
+	beq $t1, 1, innerLoop #Check if the remainder is equal to 1 if not, output a horizontal line
+	li $v0, 4
+	la $a0, horizontalLine
+	syscall
+	add $t6, $t6, 1 #Increment the index by 1
+	blt $t6, 12, boardLoop #Compare index to total, branch back if less than
 
-    li	$v0, 4	#syscall to print string
-    la	$a0, uiNewLine #loading exitString in argument register to print
-    syscall
+	jr $ra
+	
+innerLoopFinal:
+	bge $t7, 3, boardLoop
+	add $t6, $t6, 1 #Increment the index by 1
+	lw $t2, ($s0) #Load the current value of the board state into t2
+	beq $t2, 0, displayEmpty
+	beq $t2, 1, displayRed
+	j displayBlack
+	
+innerLoop:
+	bge $t7, 2, innerLoopFinal
+	lw $t2, ($s0) #Load the current value of the board state into t2
+	beq $t2, 0, displayEmpty
+	beq $t2, 1, displayRed
+	j displayBlack
+	
+	
+displayEmpty: #Displays empty board state
+	li $v0, 4
+	la $a0, stateEmpty
+	syscall
+	add $t7, $t7, 1 #Increment the inner loop index pointer
+	add $s0, $s0, 4 #Increment the array by word size
+	li $v0, 4	#Print out a vertical line to seperate columns
+	la $a0, verticalLine
+	syscall
+	j innerLoop
 
-    li	$v0, 1	
-    move $a0, $s1
-    syscall
-
-    li	$v0, 4	#syscall to print string
-    la	$a0, uiNewLine #loading exitString in argument register to print
-    syscall
-
-    li	$v0, 1
-    move $a0, $s2
-    syscall
-
-    li	$v0, 4	#syscall to print string
-    la	$a0, uiNewLine #loading exitString in argument register to print
-    syscall
-
-    li	$v0, 1
-    move $a0, $s3
-    syscall
-
-    li	$v0, 4	#syscall to print string
-    la	$a0, uiNewLine #loading exitString in argument register to print
-    syscall
-
-    jr $ra
+displayRed: #Displays Red player board state
+	li $v0, 4
+	la $a0, stateRed
+	syscall
+	add $t7, $t7, 1 #Increment the inner loop index pointer
+	add $s0, $s0, 4 #Increment the array by word size
+	li $v0, 4	#Print out a vertical line to seperate columns
+	la $a0, verticalLine
+	syscall
+	j innerLoop
+	
+displayBlack: #Displays Black player board state
+	li $v0, 4
+	la $a0, stateBlack
+	syscall
+	add $t7, $t7, 1 #Increment the inner loop index pointer
+	add $s0, $s0, 4 #Increment the array by word size
+	li $v0, 4	#Print out a vertical line to seperate columns
+	la $a0, verticalLine
+	syscall
+	j innerLoop
