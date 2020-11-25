@@ -20,16 +20,15 @@
 	columnFull: 	.asciiz "That column is full now"
 	gameExplain: 	.asciiz "This game is called Three in a row. The goal is to get three of your pieces to line up vertically, horizontally, or diagonally. The board is 3x6 and you are up against a CPU. Have fun!."
 	stateEmpty:	.asciiz "E"
-	stateRed:	.asciiz "R"
-	stateBlack:	.asciiz "B"
+	stateRed:	.asciiz "1"
+	stateBlack:	.asciiz "2"
+	testing:	.asciiz "Testing:\n"
+	testing2:	.asciiz "Better Testing:\n"
+	inbetween:	.asciiz "Bt\n"
 	
 	#Word values
-	boardState: 	.word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
-		    	.word 0,0,0
-		    	.word 0,0,0
-		    	.word 0,0,0
-		    	.word 0,0,0
-		    	.word 0,0,0
+	boardState: 	.word 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for CPU, 2 for USER
+
 		   
 	rowSize:   	.word 3
 	columnSize:	.word 6
@@ -65,8 +64,8 @@ loop: #Start of the input loop
 	
 	div $t1, $s5, 2 #Mod 2 on counter
 	mfhi $s4 #Store the remainder
-	beqz $s4, userTurn #On 0, its the user turn
-	j CPUTurn #On anything else, its the CPU turn
+	#beqz $s4, userTurn #On 0, its the user turn
+	#j CPUTurn #On anything else, its the CPU turn
 	
 userTurn:
 
@@ -119,6 +118,7 @@ invalid: #If the move is invalid
 	li $v0, 4
 	la $a0, invalidMove
 	syscall
+	addi $s5, $s5, 1
 	j loop
 
 #--------------------------------------------------------------------------------------------------------------------------------------
@@ -234,10 +234,6 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 		j gravityLoop		#Jump back to top of loop counter
 	
 	gravityEnd:
-		li $v0, 1
-		la $a0, ($s4)
-		syscall
-		
 		beq $t7, 6, inputEnd	#Check if end of gravity reached, if so, inputed into end of filed
 		beq $s4, 1, enterPlayer	#If the value in s4 is zero, that is the player
 		j enterAI		#Otherwise it is the AI
@@ -255,14 +251,12 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 		j enterAI
 		
 	enterAI:
-		li $t1, 2
-		sw $t1, 0($t9)
+		sw $s4, 0($t9)
 		sw $t5, rowIndex
 		jr $ra
 	
 	enterPlayer:
-		li $t1, 1
-		sw $t1, 0($t9)
+		sw $s4, 0($t9)
 		sw $t5, rowIndex
 		jr $ra
 		
@@ -273,10 +267,10 @@ checkWinState:
     checkWin:
     	sw $ra, 0($sp)
     	la $s0, boardState
-    	li $t1, 0	#Row Index
+    	lw $t1, rowIndex#Row Index
     	move $t8, $s2
     	checkHorizontalSetup: #Sets the col index to 0 and row index to 0
-    		li $t0, 0	#Column Index
+    		lw $t0, userInput#Column Index
     		li $t3, 0	#Number of same in checking
     		li $t4, 3	#Number of values to win
     		
@@ -289,7 +283,7 @@ checkWinState:
     		j checkHorizontalLoop
     		
     	checkHorizontalIncrement: #Increments the row to check
-    		beq $t1, $s2, checkVertical
+    		beq $t1, $t8, checkVertical
     		addi $t1, $t1, 1
     		la $s0, boardState
     		mult $t1, $s2
@@ -302,17 +296,15 @@ checkWinState:
     	
     	checkVertical:
     		la $s0, boardState
-    		li $t0, 0	#Row Index
+    		lw $t0, userInput	#Column Index
     		
     	checkVerticalSetup:
-    		lw $t1, userInput	#Get inputted Column Index
+    		lw $t1, rowIndex#Go to inputted row
     		li $t3, 0	#Number of same values in column
     		li $t4, 3	#Number of values to win
-    		mult $t1, $s2 #rowIndex * columnSize
-		mflo $t5 #Result in $t2
+    		mul $t5, $t1, $s1 #rowIndex * columnSize
 		add $t5, $t5, $t0 #(rowIndex * columnSize)($t2) + colIndex($t0))
-		mult $t5, $s3 # * datasize
-		mflo $t5 #Stored in $t4
+		mul $t5, $s3, $t5 # * datasize
 		add $s0, $t5, $s0 #Stores baseArrayAddress + (rowIndex * columnSize + colIndex)
     		
     	checkVerticalLoop: #Goes through the column and the two rows below it to check for a win
@@ -320,7 +312,7 @@ checkWinState:
     		bne $t2, $s4, checkDiagonal
     		addi $t3, $t3, 1
     		beq $t3, $t4, winner
-    		addi $s0, $s0, 12
+    		addi $s0, $s0, -12
     		j checkVerticalLoop
     	
     	checkDiagonal:
@@ -477,8 +469,8 @@ tie: #Displays tie
 	syscall
 	
 winner: #Displays the winner
-	li $t1, 1
-	beq $s4, $t1, playerWin
+	li $t1, 2
+	bne $s4, $t1, playerWin
 	j AIWin
 	
 	playerWin:
