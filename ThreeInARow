@@ -154,3 +154,18 @@ displayBlack: #Displays Black player board state
 	la $a0, verticalLine
 	syscall
 	j innerLoop
+
+gravityCheck: #Checks if the columns are filled, resulting address is in $t4
+	#t0 is user input, $t9 is baseArrayAddress
+	#address = baseArrayAddress + (rowIndex * columnSize + colIndex) * dataSize
+	#address = boardstate + (userInput * 6 + 0) * 4
+	la $t9, boardState #Sets $t9 to baseArrayAddress
+	li $t6, 4 #$t6 is dataSize
+	li $t1, 6 #$t1 is columnSize
+	li $t3, 0 #$t3 is colIndex
+	mult $t0, $t1 #rowIndex * columnSize
+	mflo $t2 #Result in $t2
+	add $t4, $t2, $t3 #(rowIndex * columnSize + colIndex)
+	add $t4, $t4, $t9 #Stores baseArrayAddress + (rowIndex * columnSize + colIndex)
+	mult $t4, $t6
+	mflo $t4
