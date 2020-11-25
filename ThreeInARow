@@ -2,7 +2,7 @@
 #Dillon Carter	dwc180002
 #Three in a row game project made for CS 2340 with Nhut Nguyen
 #Registers Used:
-#S Registers: s0: Stores 2d Array of board, s1: Stores size of row, s2: Stores size of column
+#S Registers: s0: Stores 2d Array of board, s1: Stores size of row, s2: Stores size of column, s3: Stores data size, s4: Current Player
 #T Registers: t0: Stores inputted column
 #
 .data
@@ -24,15 +24,16 @@
 	stateBlack:	.asciiz "B"
 	
 	#Word values
-	boardState: .word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
-		    .word 0,0,0
-		    .word 0,0,0
-		    .word 0,0,0
-		    .word 0,0,0
-		    .word 0,0,0
+	boardState: 	.word 0,0,0 #Stores the state of each position in the board, 0 for empty, 1 for Play1, 2 for Play 2
+		    	.word 0,0,0
+		    	.word 0,0,0
+		    	.word 0,0,0
+		    	.word 0,0,0
+		    	.word 0,0,0
 		   
-	rowSize:   .word 3
-	columnSize:.word 6
+	rowSize:   	.word 3
+	columnSize:	.word 6
+	dataSize:	.word 4		
 .text
 main:
 	li $v0, 4
@@ -46,7 +47,12 @@ main:
 	la $s0, boardState   #load base address of 2D array into register
     	lw $s1, rowSize
     	lw $s2, columnSize
+    	lw $s3, dataSize
     	
+    	
+#--------------------------------------------------------------------------------------------------------------------------------------
+#LOOP THROUGH EACH GAME TICK
+#--------------------------------------------------------------------------------------------------------------------------------------
 loop: #Start of the input loop
 	
 	jal displayBoard #Display the current board
@@ -61,13 +67,20 @@ loop: #Start of the input loop
 	li $v0, 5 #Getting ready for user input
 	syscall
 	
+	
 	move $t0, $v0 #Moves input to the temp register 0 
-	addi $t0, $t0, -1
 	jal isValid #Testing if the move is valid
+	addi $t0, $t0, -1
 	
-	li $v0, 10
-	syscall 
 	
+	li $s4, 1
+	jal gravityCheck
+	
+	j loop
+	
+#--------------------------------------------------------------------------------------------------------------------------------------
+#CHECK FOR VALID MOVE
+#--------------------------------------------------------------------------------------------------------------------------------------
 isValid: #Tests if the move is invalid
 	blt $t0, 1, invalid
 	bgt  $t0, 3, invalid
@@ -81,10 +94,13 @@ invalid: #If the move is invalid
 	syscall
 	j loop
 
+#--------------------------------------------------------------------------------------------------------------------------------------
+#DISPLAY THE BOARD
+#--------------------------------------------------------------------------------------------------------------------------------------
 displayBoard: #Takes the content of each position and displays the content whether it is red, black, or empty as R, B, or E
 	la $s0, boardState
-	move $zero, $t6
-	move $zero, $t7
+	move $t6, $0
+	move $t7, $0
 	sw $ra, 0($sp)
 	jal boardLoop
 	lw $ra, 0($sp)
@@ -157,24 +173,69 @@ displayBlack: #Displays Black player board state
 	syscall
 	j innerLoop
 
+
+#--------------------------------------------------------------------------------------------------------------------------------------
+#MOVE VALUE TO BOTTOM OF BOARD
+#--------------------------------------------------------------------------------------------------------------------------------------
 gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 	#t0 is user input, $t9 is baseArrayAddress
 	#address = baseArrayAddress + (rowIndex * columnSize + colIndex) * dataSize
 	#address = boardstate + (userInput * 6 + 0) * 4
-	la $t9, boardState #Sets $t9 to baseArrayAddress
-	li $t6, 4 #$t6 is dataSize
-	li $t1, 6 #$t1 is columnSize
-	li $t3, 0 #$t3 is colIndex
-mid:
-	mult $t0, $t1 #rowIndex * columnSize
-	mflo $t2 #Result in $t2
-	add $t4, $t2, $t3 #(rowIndex * columnSize + colIndex)
-	mult $t4, $t6 # * datasize
-	mflo $t4 #Stored in $t4
-	add $t4, $t4, $t9 #Stores baseArrayAddress + (rowIndex * columnSize + colIndex)
-	lw $t6, 0($t4) #Gets the value at the address $t4 stored in $t6
-	bgt $t6, 0, gravityIncrement
+	la $s0, boardState #Sets $s0 to baseArrayAddress
+	li $t1, 0 #$t1 is colIndex
+	#Go to the first index of the chosen column
+	li $v0, 1
+	la $a0, ($t0)
+	syscall
 	
-gravityIncrement:
-	addi $t3, $t3, 1
-	j mid
+	
+	mult $t1, $s2 #rowIndex * columnSize
+	mflo $t2 #Result in $t2
+	add $t3, $t2, $t0 #(rowIndex * columnSize)($t2) + colIndex($t0))
+	mult $t3, $s3 # * datasize
+	mflo $t3 #Stored in $t4
+	add $s0, $t3, $s0 #Stores baseArrayAddress + (rowIndex * columnSize + colIndex)
+	lw $t4, 0($s0) #Gets the value at the address $t4 stored in $t6
+	#At t4, the value of the first column given is stored, check this against 0, if not 0 end loop and give error, otherwise, continue down until end of table reached
+	bgt $t4, $0, invalid #If the first value is filled, its an invalid move
+	j gravityLoop
+	
+	gravityLoop:
+		move $t9, $s0		#Move the address of the board into t9
+		addi $s0, $s0, 12	#Increment the address of the board to the next row
+		lw $t4, 0($s0)		#Get the value out of the current index
+		bgt $t4, 0, gravityEnd	#Check the value in t4, if it is greater than 0, then the previous value will be filled
+		beq $t7, 6, gravityEnd	#Check the loop counter, if it is equal to six, exit the loop
+		addi $t7, $t7, 1	#Increment the loop counter
+		j gravityLoop		#Jump back to top of loop counter
+	
+	gravityEnd:
+		beq $t7, 6, inputEnd	#Check if end of gravity reached, if so, inputed into end of filed
+		beq $s4, 0, enterPlayer	#If the value in s4 is zero, that is the player
+		j enterAI		#Otherwise it is the AI
+		
+	inputEnd:
+		li $t1, 5		#Make row Index 5
+		mult $t1, $s2 		#rowIndex * columnSize
+		mflo $t2 		#Result in $t2
+		add $t3, $t2, $t1 	#(rowIndex * columnSize)($t2) + colIndex($t1))
+		mult $t3, $s3 		# * datasize
+		mflo $t3 		#Stored in $t4
+		add $s0, $t3, $s0 	#Stores baseArrayAddress + (rowIndex * columnSize + colIndex)
+		move $t9, $s0
+		beq $s4, 0, enterPlayer
+		j enterAI
+		
+	enterAI:
+		li $t1, 2
+		sw $t1, 0($t9)
+		jr $ra
+	
+	enterPlayer:
+		li $t1, 1
+		sw $t1, 0($t9)
+		jr $ra
+		
+#--------------------------------------------------------------------------------------------------------------------------------------
+#CHECK WIN STATE
+#--------------------------------------------------------------------------------------------------------------------------------------
