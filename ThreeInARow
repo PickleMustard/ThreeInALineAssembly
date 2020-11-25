@@ -62,9 +62,11 @@ loop: #Start of the input loop
 	syscall
 	
 	move $t0, $v0 #Moves input to the temp register 0 
+	addi $t0, $t0, -1
 	jal isValid #Testing if the move is valid
 	
-	
+	li $v0, 10
+	syscall 
 	
 isValid: #Tests if the move is invalid
 	blt $t0, 1, invalid
@@ -163,9 +165,16 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 	li $t6, 4 #$t6 is dataSize
 	li $t1, 6 #$t1 is columnSize
 	li $t3, 0 #$t3 is colIndex
+mid:
 	mult $t0, $t1 #rowIndex * columnSize
 	mflo $t2 #Result in $t2
 	add $t4, $t2, $t3 #(rowIndex * columnSize + colIndex)
+	mult $t4, $t6 # * datasize
+	mflo $t4 #Stored in $t4
 	add $t4, $t4, $t9 #Stores baseArrayAddress + (rowIndex * columnSize + colIndex)
-	mult $t4, $t6
-	mflo $t4
+	lw $t6, 0($t4) #Gets the value at the address $t4 stored in $t6
+	bgt $t6, 0, gravityIncrement
+	
+gravityIncrement:
+	addi $t3, $t3, 1
+	j mid
