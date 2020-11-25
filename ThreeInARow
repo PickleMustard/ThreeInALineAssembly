@@ -50,7 +50,7 @@ main:
     	lw $s1, rowSize
     	lw $s2, columnSize
     	lw $s3, dataSize
-    	
+    	li $s5, 0 #Counter for turns
     	
 #--------------------------------------------------------------------------------------------------------------------------------------
 #LOOP THROUGH EACH GAME TICK
@@ -63,22 +63,43 @@ loop: #Start of the input loop
 	la $a0, newLine
 	syscall
 	
+	div $t1, $s5, 2 #Mod 2 on counter
+	mfhi $s4 #Store the remainder
+	beqz $s4, userTurn #On 0, its the user turn
+	j CPUTurn #On anything else, its the CPU turn
+	
+userTurn:
+
+	li $v0, 4
+	la $a0, movePrompt
+	syscall
+	
 	la $a0, inputPosition
 	syscall 
 
 	li $v0, 5 #Getting ready for user input
 	syscall
-	
-	
 	move $t0, $v0 #Moves input to the temp register 0 
 	jal isValid #Testing if the move is valid
 	addi $t0, $t0, -1
+	j finalizeLoop
+	
+CPUTurn:
+	li $v0, 4
+	la $a0, computerTurn
+	syscall
+	
+	li $a1, 3
+	la $v0, 42
+	syscall
+	move $t0, $a0 
+	
+finalizeLoop:
+	addi $s5, $s5, 1
 	sw $t0, userInput
 	
-	li $s4, 1
+	addi $s4, $s4, 1
 	jal gravityCheck
-	
-	jal displayBoard #Display the current board
 	
 	jal checkWinState
 	
@@ -190,9 +211,6 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 	la $s0, boardState #Sets $s0 to baseArrayAddress
 	li $t1, 0 #$t1 is colIndex
 	#Go to the first index of the chosen column
-	li $v0, 1
-	la $a0, ($t0)
-	syscall
 	
 	
 	mult $t1, $s2 #rowIndex * columnSize
@@ -216,6 +234,10 @@ gravityCheck: #Checks if the columns are filled, resulting address is in $t4
 		j gravityLoop		#Jump back to top of loop counter
 	
 	gravityEnd:
+		li $v0, 1
+		la $a0, ($s4)
+		syscall
+		
 		beq $t7, 6, inputEnd	#Check if end of gravity reached, if so, inputed into end of filed
 		beq $s4, 1, enterPlayer	#If the value in s4 is zero, that is the player
 		j enterAI		#Otherwise it is the AI
